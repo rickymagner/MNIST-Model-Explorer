@@ -3,6 +3,9 @@ from torchvision import transforms as T
 from torch.utils.data import random_split, DataLoader
 
 class MNISTData:
+    """
+    Class to handle MNIST data loading and processing.
+    """
     def __init__(self, batch_size: int = 64, normalize: bool = True, val_split: float = 0.1, data_dir: str = "data"):
         self.batch_size = batch_size
         self.normalize = normalize

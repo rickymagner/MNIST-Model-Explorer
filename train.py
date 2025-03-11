@@ -7,14 +7,20 @@ from data import MNISTData
 
 
 class TrainConfig:
+    """
+    Small class for holding information related to training parameters.
+    """
     def __init__(self, epochs: int = 10, learning_rate: float = 0.001, optimizer: str = None):
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.optimizer_name = optimizer
         self.loss_fn = nn.CrossEntropyLoss()
 
-class NeuralNetwork(nn.Module):
-    def __init__(self, hidden_layer_sizes: list = [84], train_config: TrainConfig = None, data: MNISTData = None):
+class BaseNetwork(nn.Module):
+    """
+    Template for network to be used when reloading pretrained weights.
+    """
+    def __init__(self, hidden_layer_sizes: list = [84]):
         super().__init__()
         self.flatten = nn.Flatten()
         layers = []
@@ -31,12 +37,6 @@ class NeuralNetwork(nn.Module):
         self.linear_relu_stack = nn.Sequential(*layers)
         self.softmax = nn.Softmax(dim=1)
 
-        self.train_config = train_config
-        self.data = data
-        self.hidden_layer_sizes = hidden_layer_sizes
-
-        self.optimizer =  torch.optim.Adam(self.parameters(), lr=self.train_config.learning_rate) if self.train_config.optimizer_name == 'adam' else torch.optim.SGD(self.parameters(), lr=self.train_config.learning_rate)
-
     def forward(self, x):
         """
         Forward pass of the neural network.
@@ -45,6 +45,19 @@ class NeuralNetwork(nn.Module):
         logits = self.linear_relu_stack(x)
         pred = self.softmax(logits)
         return pred
+
+class NeuralNetwork(BaseNetwork):
+    """
+    Main network for training, incorporating data and optimizer.
+    """
+    def __init__(self, hidden_layer_sizes: list = [84], train_config: TrainConfig = None, data: MNISTData = None):
+        super().__init__(hidden_layer_sizes)
+
+        self.train_config = train_config
+        self.data = data
+        self.hidden_layer_sizes = hidden_layer_sizes
+
+        self.optimizer =  torch.optim.Adam(self.parameters(), lr=self.train_config.learning_rate) if self.train_config.optimizer_name == 'adam' else torch.optim.SGD(self.parameters(), lr=self.train_config.learning_rate)
 
     def train_loop(self):
         """
