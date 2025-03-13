@@ -139,9 +139,9 @@ class ModelStore:
         x = transforms.Resize(size=(28 * scaling_factor, 28 * scaling_factor))(x)
         return x.squeeze().numpy(), y.squeeze().numpy(), None
 
-    def make_prediction(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
+    def make_prediction_dist(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
         """
-        Make a prediction on the provided image using the specified model.
+        Make prediction distribution for the provided image using the specified model.
         """
         hls_ints = [int(i) for i in hls.removeprefix('[').removesuffix(']').split(',')]
         hls_str = "-".join(str(i) for i in hls_ints)
@@ -160,7 +160,30 @@ class ModelStore:
 
         model.eval()
         with torch.no_grad():
-            return model(image).argmax().item()
+            return model(image)
+
+    def make_prediction_plot(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
+        """
+        Plot the distribution of predictions for the provided image using the specified model.
+        """
+        prediction = self.make_prediction_dist(image, hls, epochs, lr, bs, wv, opt, norm, seed)
+
+        prediction = prediction[0].numpy()
+        prediction_df = pd.DataFrame({
+            'digit': list(range(10)),
+            'probability': prediction
+        })
+        fig = px.bar(prediction_df, x='digit', y='probability', title="Prediction Distribution")
+        fig.update_layout(xaxis=dict(dtick=1))
+        return fig
+
+    def make_prediction(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
+        """
+        Make a specific prediction on the provided image using the specified model, and plot probability distribution.
+        """
+        prediction = self.make_prediction_dist(image, hls, epochs, lr, bs, wv, opt, norm, seed)[0].argmax().item()
+        pred_plot = self.make_prediction_plot(image, hls, epochs, lr, bs, wv, opt, norm, seed)
+        return prediction, pred_plot
 
 class App:
     """
@@ -220,15 +243,14 @@ class App:
                     image_button = gr.Button(value="Generate Random Image")
                     pred_button = gr.Button(value="Make Prediction")
                 with gr.Row():
-                    prediction = gr.Textbox(label="Prediction")
                     real_label = gr.Textbox(label="Real Label")
+                    prediction = gr.Textbox(label="Prediction")
                 with gr.Row():
-                    # Make an image to generate random from dataset using a button
-                    # Show prediction in a textbox below
-                    image = gr.Image(label="Random Image", width=600, height=600)
+                    image = gr.Image(label="Random Image", width=600, height=450)
+                    prob_plot = gr.Plot(label="Prediction Distribution", value=None)
 
                 image_button.click(self.model_store.get_random_image, inputs=[], outputs=[image, real_label, prediction])
-                pred_button.click(self.model_store.make_prediction, inputs=[image, hls_opts, epoch_opts, lr_opts, batch_opts, val_opts, opt_opts, norm_opts, seed_opts], outputs=prediction)
+                pred_button.click(self.model_store.make_prediction, inputs=[image, hls_opts, epoch_opts, lr_opts, batch_opts, val_opts, opt_opts, norm_opts, seed_opts], outputs=[prediction, prob_plot])
 
 
 
