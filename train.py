@@ -35,7 +35,7 @@ class BaseNetwork(nn.Module):
         layers.append(nn.Linear(hidden_layer_sizes[-1], 10))
 
         self.linear_relu_stack = nn.Sequential(*layers)
-        self.softmax = nn.Softmax(dim=1)
+        # self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         """
@@ -43,8 +43,7 @@ class BaseNetwork(nn.Module):
         """
         x = self.flatten(x)
         logits = self.linear_relu_stack(x)
-        pred = self.softmax(logits)
-        return pred
+        return logits
 
 class NeuralNetwork(BaseNetwork):
     """
@@ -65,7 +64,7 @@ class NeuralNetwork(BaseNetwork):
         """
         self.train()
 
-        losses = []
+        running_loss = 0.0
         for batch, (X, y) in enumerate(self.data.train_loader):
             # X = X.to(device)
             # y = y.to(device)
@@ -77,10 +76,9 @@ class NeuralNetwork(BaseNetwork):
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-            if batch % 100 == 0:
-                losses += [loss.item()]
+            running_loss += loss.item()
 
-        return losses
+        return running_loss / len(self.data.train_loader.dataset)
 
     def validation_loop(self):
         """
@@ -88,7 +86,7 @@ class NeuralNetwork(BaseNetwork):
         """
         self.eval()
 
-        losses = []
+        running_loss = 0.0
         for batch, (X, y) in enumerate(self.data.val_loader):
             # X = X.to(device)
             # y = y.to(device)
@@ -96,10 +94,9 @@ class NeuralNetwork(BaseNetwork):
             with torch.no_grad():
                 pred = self(X)
                 loss = self.train_config.loss_fn(pred, y)
-                if batch % 100 == 0:
-                    losses += [loss.item()]
+                running_loss += loss.item()
 
-        return losses
+        return running_loss / len(self.data.val_loader.dataset)
 
     def full_train(self):
         """
@@ -109,8 +106,8 @@ class NeuralNetwork(BaseNetwork):
         val_losses = []
 
         for epoch in range(self.train_config.epochs):
-            train_losses += self.train_loop()
-            val_losses += self.validation_loop()
+            train_losses += [self.train_loop()]
+            val_losses += [self.validation_loop()]
 
         loss_df = pd.concat([
             pd.DataFrame({
@@ -132,7 +129,7 @@ class NeuralNetwork(BaseNetwork):
         with torch.no_grad():
             num_correct = 0
             for (X, y) in self.data.test_loader:
-                pred = self(X)
+                pred = nn.Softmax(dim=1)(self(X))
                 num_correct += (pred.argmax(1) == y).type(torch.float).sum().item()
 
             accuracy = num_correct / len(self.data.test_loader.dataset)

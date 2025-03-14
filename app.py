@@ -2,6 +2,7 @@ import gradio as gr
 import pandas as pd
 import os
 import plotly.express as px
+from torch import nn
 from torchvision import transforms
 import torch
 import data
@@ -88,7 +89,7 @@ class ModelStore:
             & (self.loss_df['normalize'] == norm)
             & (self.loss_df['seed'] == seed)
         ]
-        loss_df["index"] = loss_df.apply(lambda x: vs / (1 - vs) * x["index"] if x["type"] == "train" else x["index"], axis=1)
+        # loss_df["index"] = loss_df.apply(lambda x: vs / (1 - vs) * x["index"] if x["type"] == "train" else x["index"], axis=1)
         return px.line(loss_df, x="index", y="loss", color="type", title=f"Loss Curve for Provided Parameters")
 
     def subset_perf_by_free_column(self, free_column, hls, epochs, lr, bs, vs, opt, norm, seed):
@@ -160,9 +161,9 @@ class ModelStore:
 
         model.eval()
         with torch.no_grad():
-            return model(image)
+            return nn.Softmax(dim=1)(model(image))
 
-    def make_prediction_plot(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
+    def make_prediction_plot(self, answer, image, hls, epochs, lr, bs, wv, opt, norm, seed):
         """
         Plot the distribution of predictions for the provided image using the specified model.
         """
@@ -170,19 +171,24 @@ class ModelStore:
 
         prediction = prediction[0].numpy()
         prediction_df = pd.DataFrame({
-            'digit': list(range(10)),
+            'digit': list(str(d) for d in range(10)),
             'probability': prediction
         })
-        fig = px.bar(prediction_df, x='digit', y='probability', title="Prediction Distribution")
+
+        colors = px.colors.qualitative.Plotly
+        color_list = 10 * [colors[0]]
+        color_list[int(answer)] = colors[1]
+
+        fig = px.bar(prediction_df, x='digit', y='probability', title="Prediction Distribution", color='digit', color_discrete_sequence=color_list)
         fig.update_layout(xaxis=dict(dtick=1))
         return fig
 
-    def make_prediction(self, image, hls, epochs, lr, bs, wv, opt, norm, seed):
+    def make_prediction(self, answer, image, hls, epochs, lr, bs, wv, opt, norm, seed):
         """
         Make a specific prediction on the provided image using the specified model, and plot probability distribution.
         """
         prediction = self.make_prediction_dist(image, hls, epochs, lr, bs, wv, opt, norm, seed)[0].argmax().item()
-        pred_plot = self.make_prediction_plot(image, hls, epochs, lr, bs, wv, opt, norm, seed)
+        pred_plot = self.make_prediction_plot(answer, image, hls, epochs, lr, bs, wv, opt, norm, seed)
         return prediction, pred_plot
 
 class App:
@@ -250,8 +256,6 @@ class App:
                     prob_plot = gr.Plot(label="Prediction Distribution", value=None)
 
                 image_button.click(self.model_store.get_random_image, inputs=[], outputs=[image, real_label, prediction])
-                pred_button.click(self.model_store.make_prediction, inputs=[image, hls_opts, epoch_opts, lr_opts, batch_opts, val_opts, opt_opts, norm_opts, seed_opts], outputs=[prediction, prob_plot])
-
-
+                pred_button.click(self.model_store.make_prediction, inputs=[real_label, image, hls_opts, epoch_opts, lr_opts, batch_opts, val_opts, opt_opts, norm_opts, seed_opts], outputs=[prediction, prob_plot])
 
         demo.launch(server_port=server_port, share=share)
