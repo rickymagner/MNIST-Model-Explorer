@@ -10,6 +10,7 @@ This repo provides a command line tool designed to faciliate the training and ex
 3. [Code Structure](#code-structure)
     1. [Training Process](#training-process)
     2. [Exploration Process](#exploration-process)
+3. [Learning Ideas](#learning-ideas)
 
 ## Example Screenshots
 
@@ -93,3 +94,13 @@ The exploration process involves the following steps:
 
 1. **Model Loading**: Create `ModelStore` object to hold information managing existing models in provided directory.
 2. **Gradio App**: Start a Gradio server to visualize model performance and interact with the models in the `ModelStore`.
+
+## Learning Ideas
+
+Looking to learn more about Pytorch, Gradio, or neural networks? Just fork this repo and try implementing any of the following:
+- Implement incorporating convolutional layers into the network architecture before the fully connected layers.
+- Add different dataset selection (e.g. Fashion MNIST, CIFAR-10, etc.).
+- Add more optimizer selections based on Pytorch's available optimizers.
+- Include option for GPU-training (but ensure it's still fast for users without GPUs, i.e. not too many `.to` calls in CPU setting).
+- Better handle multiple values for number of epochs using checkpoints.
+- Allow users to insert dropout layers via special syntax e.g. `--hidden-layers 256 d 32 d`. 
